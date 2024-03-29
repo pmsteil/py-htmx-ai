@@ -31,7 +31,7 @@ from flask import Flask, request, jsonify, render_template
 from openai import OpenAI
 from dotenv import load_dotenv
 from openai import ChatCompletion
-import json
+
 
 # load ENV vars
 load_dotenv()
@@ -87,13 +87,9 @@ def _generate_html_based_on_prompt(prompt):
 @app.route('/', methods=['GET'])
 def home():
 
-    requested_url = request.url
-    debug(f"Requested URL: {requested_url}", 2)
     return render_template('index.html')
 
 
-# hmm, couldn't get post to work... so using get for now
-# POST http://127.0.0.1:3333/generate 415 (UNSUPPORTED MEDIA TYPE)
 @app.route('/generate', methods=['POST', 'GET'])
 def generate_html():
     """
@@ -105,8 +101,10 @@ def generate_html():
             return jsonify({'error': 'Prompt is required'}), 400
 
         html_code = _generate_html_based_on_prompt(prompt)
-        # response = jsonify({'html_code': html_code})
         return html_code
+
+    # hmm, couldn't get post to work... so using get for now
+    # POST http://127.0.0.1:3333/generate 415 (UNSUPPORTED MEDIA TYPE)
     elif request.method == 'POST':
         data = request.json
         prompt = data.get('prompt', None)
@@ -119,7 +117,6 @@ def generate_html():
         return response
 
 
-
 def debug(message, level=1):
     """
     Print debug messages based on the DEBUG_LEVEL environment variable.
@@ -129,6 +126,8 @@ def debug(message, level=1):
     """
     if DEBUG_LEVEL and int(DEBUG_LEVEL) >= level:
         print(message)
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3333, debug=True)
