@@ -20,7 +20,7 @@ htmx.defineExtension('ai', {
         if (name === 'htmx:beforeProcessNode') {
             evt.target.querySelectorAll('[hx-ai]').forEach(el => {
                 const nextEndpoint = el.closest(['hx-ai-endpoint'])?.getAttribute('hx-ai-endpoint');
-                el.setAttribute('hx-get', nextEndpoint ?? 'http://127.0.0.1:3333/gen');
+                el.setAttribute('hx-get', nextEndpoint ?? '/generate');
                 el.setAttribute('hx-headers', '{"Content-Type": "application/json"}');
                 if(el.getAttribute('hx-ai').startsWith('js:')){
                     el.setAttribute('hx-vals', 'js:{prompt: ' + el.getAttribute('hx-ai').replace('js:', '') + '}');

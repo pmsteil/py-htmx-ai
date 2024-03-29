@@ -1,28 +1,28 @@
 """
-The main.py file is a Flask web application that uses the OpenAI API to generate HTML and CSS code based on a given prompt.
+    The main.py file is a Flask web application that uses the OpenAI API to generate HTML and CSS code based on a given prompt.
 
-To install the dependencies, run the following pip command:
-    pip install -r requirements.txt
+    To install the dependencies, run the following pip command:
+        pip install -r requirements.txt
 
-The application defines a single route (/) that accepts POST requests. When a request is received, it extracts a 'prompt' from the request data. This prompt is then used to generate a message that is sent to the OpenAI API.
+    The application defines a single route (/) that accepts POST requests. When a request is received, it extracts a 'prompt' from the request data. This prompt is then used to generate a message that is sent to the OpenAI API.
 
-The OpenAI API is expected to return HTML and CSS code based on the prompt. The generated code is intended to be directly written to the innerHTML of an HTML element and used in production.
+    The OpenAI API is expected to return HTML and CSS code based on the prompt. The generated code is intended to be directly written to the innerHTML of an HTML element and used in production.
 
-The application emphasizes that the generated code should not include any extra text or comments, and should not use any libraries or imports not provided in the task. It also provides guidelines for using images and SVG icons, and for ensuring that HTML elements are properly closed.
+    The application emphasizes that the generated code should not include any extra text or comments, and should not use any libraries or imports not provided in the task. It also provides guidelines for using images and SVG icons, and for ensuring that HTML elements are properly closed.
 
-To run this application, you need to have the OpenAI API key set as an environment variable. The application uses this key to authenticate with the OpenAI API.
+    To run this application, you need to have the OpenAI API key set as an environment variable. The application uses this key to authenticate with the OpenAI API.
 
-The application is designed to be used as part of a larger system that allows users to generate HTML and CSS code based on prompts. The generated code can be used to create web applications with Tailwind CSS styling.
+    The application is designed to be used as part of a larger system that allows users to generate HTML and CSS code based on prompts. The generated code can be used to create web applications with Tailwind CSS styling.
 
-The application demonstrates how the OpenAI API can be used to generate code snippets based on user prompts, and how these snippets can be integrated into web applications to enhance development workflows.
+    The application demonstrates how the OpenAI API can be used to generate code snippets based on user prompts, and how these snippets can be integrated into web applications to enhance development workflows.
 
-To start this flask server, run the following command:
-    python main.py
+    To start this flask server, run the following command:
+        python main.py
 
-The server will start running on port 80 by default. You can change the port by modifying the app.run() method.
+    The server will start running on port 80 by default. You can change the port by modifying the app.run() method.
 
-If you get this error: "Permission denied", you can run the following command:
-    sudo python main.py
+    If you get this error: "Permission denied", you can run the following command:
+        sudo python main.py
 
 """
 import os
@@ -33,20 +33,14 @@ from dotenv import load_dotenv
 from openai import ChatCompletion
 import json
 
+# load ENV vars
 load_dotenv()
 
-
-# load ENV vars
-
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", None)
-# define the model to use
-# OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4-1106-preview")
-# OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
-DEBUG_LEVEL = os.getenv("DEBUG_LEVEL", 2)
 
-client = OpenAI()
-# openai = OpenAI(api_key=OPENAI_API_KEY)
+# define the default model to use
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+DEBUG_LEVEL = os.getenv("DEBUG_LEVEL", 0)
 
 app = Flask(__name__)
 
@@ -58,6 +52,7 @@ def _generate_html_based_on_prompt(prompt):
     Returns:
         str: The generated HTML and CSS code.
     """
+    client = OpenAI()
     system_prompt = ("You are an expert at writing HTML and CSS. "
                      "Your Task is to write new HTML and CSS Code for a web app, according to the provided task details. "
                      "The html code you write can make use of Tailwind classes for styling. "
@@ -96,38 +91,33 @@ def home():
     debug(f"Requested URL: {requested_url}", 2)
     return render_template('index.html')
 
-@app.route
 
-
-@app.route('/gen', methods=['GET'])
-def gen():
-    """
-    Generate HTML and CSS code based on a given prompt.
-    """
-    # get prompt from params
-    prompt = request.args.get('prompt', None)
-    html_code = _generate_html_based_on_prompt(prompt)
-    return html_code
-
-
-@app.route('/generate', methods=['POST'])
+# hmm, couldn't get post to work... so using get for now
+# POST http://127.0.0.1:3333/generate 415 (UNSUPPORTED MEDIA TYPE)
+@app.route('/generate', methods=['POST', 'GET'])
 def generate_html():
     """
     Generate HTML and CSS code based on a given prompt.
     """
-    data = request.json
-    prompt = data.get('prompt', None)
+    if request.method == 'GET':
+        prompt = request.args.get('prompt', None)
+        if not prompt:
+            return jsonify({'error': 'Prompt is required'}), 400
 
-    if not prompt:
-        return jsonify({'error': 'Prompt is required'}), 400
+        html_code = _generate_html_based_on_prompt(prompt)
+        # response = jsonify({'html_code': html_code})
+        return html_code
+    elif request.method == 'POST':
+        data = request.json
+        prompt = data.get('prompt', None)
 
-    html_code = _generate_html_based_on_prompt(prompt)
-    response = jsonify({'html_code': html_code})
-    # disable CORS
-    response.headers.add('Access-Control-Allow-Origin', 'https://localhost:3333')
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    return response
-    # return response
+        if not prompt:
+            return jsonify({'error': 'Prompt is required'}), 400
+
+        html_code = _generate_html_based_on_prompt(prompt)
+        response = jsonify({'html_code': html_code})
+        return response
+
 
 
 def debug(message, level=1):
