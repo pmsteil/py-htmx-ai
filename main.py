@@ -73,6 +73,7 @@ def _generate_html_based_on_prompt(prompt):
                    "Do not use libraries or imports except what is provided in this task; otherwise it would crash the component because not installed. Do not import extra libraries besides what is provided above !"
                    "Write the Code as the creative genius that you are - with good ui formatting.")
 
+    debug( "Calling OpenAI API... with prompt: \n" + prompt, 1)
     response = client.chat.completions.create(model="gpt-4-1106-preview",
                                               messages=[
                                                   {"role": "system", "content": system_prompt},
@@ -86,20 +87,23 @@ def _generate_html_based_on_prompt(prompt):
     return html_code
 
 
-@app.route('/')
+@app.route('/', methods=['GET'])
 def home():
 
     requested_url = request.url
     debug(f"Requested URL: {requested_url}", 2)
     return render_template('index.html')
 
+@app.route
 
-@app.route('/test', methods=['GET'])
-def test():
+
+@app.route('/gen', methods=['GET'])
+def gen():
     """
     Generate HTML and CSS code based on a given prompt.
     """
-    prompt = "Create a button with a red background and white text color."
+    # get prompt from params
+    prompt = request.args.get('prompt', None)
     html_code = _generate_html_based_on_prompt(prompt)
     return html_code
 
@@ -121,8 +125,6 @@ def generate_html():
     response.headers.add('Access-Control-Allow-Origin', 'https://localhost:3333')
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
-    # response.headers.add('Access-Control-Allow-Origin', '*')  # Add the 'Access-Control-Allow-Origin' header
-    # response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
     # return response
 
 
