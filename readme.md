@@ -21,10 +21,18 @@ The Python version is almost identical, with these modifications:
 - Documented code better
 - Added a bit of debug on server side to see what server is doing (set DEBUG_LEVEL=0 to disable)
 
-### Issues
+## Issues
 
-1. For some reason I could not get the hx-ai to POST to the server, had to change it to a GET.
+1. For some reason I could not get the hx-ai to POST to the server, had to change it to a GET. Would like to use POST instead (open an issue if you know how to fix this).
 2. Need to load the htmx library from a public repo.
+
+## Roadmap
+
+1. Would love to build this into a prototyping tool. Where the user could start with a blank page and then add elements to the page and then generate the code for each section of the page.
+2. The user could specify their own "system prompt" to try and define color scheme, styling, etc to make all sections have some uniformity.
+3. The user could then download the code for the page they created.
+4. The user could generate the template code using htmx for the front end and Flask for the back end and download it as a starting point.
+5. Many more dreams if I ever get this far! :)
 
 ## Installation
 
@@ -34,12 +42,22 @@ conda activate htmx-ai
 pip install -r requirements.txt
 ```
 
+Now copy the .env.sample file to .env and add your OpenAI API key to the .env file.
+
+
 ## Running the server
 
-The server defaults to running on port 80. To start the server, run the following command:
+
+To start the server, run the following command:
 
 ```bash
 python app.py
 ```
 
 
+Note: The server defaults to running on port 3333, if that port is already in use, you can change it in the app.py file here:
+
+```python
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=3333, debug=True)
+```
