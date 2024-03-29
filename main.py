@@ -24,8 +24,6 @@ The server will start running on port 80 by default. You can change the port by 
 If you get this error: "Permission denied", you can run the following command:
     sudo python main.py
 
-
-
 """
 import os
 
@@ -41,6 +39,10 @@ load_dotenv()
 # load ENV vars
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", None)
+# define the model to use
+# OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4-1106-preview")
+# OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 DEBUG_LEVEL = os.getenv("DEBUG_LEVEL", 2)
 
 client = OpenAI()
@@ -73,8 +75,8 @@ def _generate_html_based_on_prompt(prompt):
                    "Do not use libraries or imports except what is provided in this task; otherwise it would crash the component because not installed. Do not import extra libraries besides what is provided above !"
                    "Write the Code as the creative genius that you are - with good ui formatting.")
 
-    debug( "Calling OpenAI API... with prompt: \n" + prompt, 1)
-    response = client.chat.completions.create(model="gpt-4-1106-preview",
+    debug( f"Calling OpenAI({OPENAI_MODEL})... with prompt: \n" + prompt, 1)
+    response = client.chat.completions.create(model=OPENAI_MODEL,
                                               messages=[
                                                   {"role": "system", "content": system_prompt},
                                                   {"role": "user", "content": user_prompt}
