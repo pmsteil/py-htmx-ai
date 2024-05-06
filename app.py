@@ -27,10 +27,11 @@
 """
 import os
 
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file, Response
 from openai import OpenAI
 from dotenv import load_dotenv
 from openai import ChatCompletion
+from bs4 import BeautifulSoup
 
 
 # load ENV vars
@@ -44,7 +45,7 @@ DEBUG_LEVEL = os.getenv("DEBUG_LEVEL", 0)
 
 app = Flask(__name__)
 
-def _generate_html_based_on_prompt(prompt):
+def _generate_html_based_on_prompt(prompt:str) -> str:
     """
     Generate HTML and CSS code based on a given prompt using the OpenAI API.
     Args:
@@ -85,15 +86,16 @@ def _generate_html_based_on_prompt(prompt):
 
 
 @app.route('/', methods=['GET'])
-def home():
-
+def home() -> str:
     return render_template('index.html')
 
 
 @app.route('/generate', methods=['POST', 'GET'])
-def generate_html():
+def generate_html() -> str:
     """
     Generate HTML and CSS code based on a given prompt.
+    This function has a side effect of updating prototype.html
+    with the generated html.
     """
     if request.method == 'GET':
         prompt = request.args.get('prompt', None)
@@ -101,6 +103,10 @@ def generate_html():
             return jsonify({'error': 'Prompt is required'}), 400
 
         html_code = _generate_html_based_on_prompt(prompt)
+
+        hx_target = request.headers.get('hx-target')
+        update_prototype(html_code, hx_target)
+
         return html_code
 
     # hmm, couldn't get post to work... so using get for now
@@ -115,9 +121,36 @@ def generate_html():
         html_code = _generate_html_based_on_prompt(prompt)
         response = jsonify({'html_code': html_code})
         return response
+    
+
+def update_prototype(html_code:str, hx_target:str) -> None:
+    """
+    Update prototype.html in the div
+    that has an id that matches the hx-target of whatever generated the html
+    """
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    prototype_path = os.path.join(current_dir, 'prototype.html')
+    with open(prototype_path, 'r') as file:
+        current_html = file.read()
+    soup = BeautifulSoup(current_html, 'html.parser') # soup is yummy
+
+    hero_div = soup.find('div', id=hx_target)
+    hero_div.clear()
+    hero_div.append(html_code)
+
+    with open(prototype_path, 'w') as file:
+        file.write(soup.prettify(formatter=None))
 
 
-def debug(message, level=1):
+@app.route('/download_file/<filename>')
+def download_file(filename:str) -> Response:
+    """
+    Download a file that is in the same directory as app.py
+    """
+    return send_file(filename, as_attachment=True)
+
+
+def debug(message:str, level:int=1) -> None:
     """
     Print debug messages based on the DEBUG_LEVEL environment variable.
     Args:
@@ -128,6 +161,23 @@ def debug(message, level=1):
         print(message)
 
 
+def reset_prototype_html() -> None:
+    """
+    Reset prototype.html by reading prototype-start.html and copying it...
+    If index.html changes, we currently have to manually change prototype-start.html
+    Not the best way to do this, but the important part is that prototype-start.html
+    doesn't have the "Regenerate section with AI" buttons or the top bar.
+    """
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    prototype_start_path = os.path.join(current_dir, 'prototype-start.html')
+    prototype_path = os.path.join(current_dir, 'prototype.html')
+    with open(prototype_start_path, 'r') as prototype_start:
+        starting_html = prototype_start.read()
+    
+    with open(prototype_path, 'w') as prototype:
+        prototype.write(starting_html)
+        
 # Run the server on port 3333
 if __name__ == '__main__':
+    reset_prototype_html() # Right now we're only reseting prototype.html on startup
     app.run(host='0.0.0.0', port=3333, debug=True)
