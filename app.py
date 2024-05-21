@@ -101,10 +101,19 @@ def generate_html() -> str:
         prompt = request.args.get('prompt', None)
         if not prompt:
             return jsonify({'error': 'Prompt is required'}), 400
-
-        html_code = _generate_html_based_on_prompt(prompt)
-
+        
         hx_target = request.headers.get('hx-target')
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        prototype_path = os.path.join(current_dir, 'prototype.html')
+        with open(prototype_path, 'r') as file:
+            current_html = file.read()
+        soup = BeautifulSoup(current_html, 'html.parser') # soup is yummy
+
+        target_div = soup.find('div', id=hx_target)
+        prompt_prefix = f"Here's what I have so far:\n{target_div}"
+
+        html_code = _generate_html_based_on_prompt(f'{prompt_prefix}\n{prompt}')
+        
         update_prototype(html_code, hx_target)
 
         return html_code
@@ -134,9 +143,9 @@ def update_prototype(html_code:str, hx_target:str) -> None:
         current_html = file.read()
     soup = BeautifulSoup(current_html, 'html.parser') # soup is yummy
 
-    hero_div = soup.find('div', id=hx_target)
-    hero_div.clear()
-    hero_div.append(html_code)
+    target_div = soup.find('div', id=hx_target)
+    target_div.clear()
+    target_div.append(html_code)
 
     with open(prototype_path, 'w') as file:
         file.write(soup.prettify(formatter=None))

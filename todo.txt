@@ -1,0 +1,23 @@
+todo:
+- generally clean things up and make it easier to maintain
+- make the inclusion of the already rendered html to the ai optional
+- add the ability to add or delete sections from the page
+- add the ability to enter a url or upload some html and have the ai edit that html
+    - have the website dynamically add hx-ai buttons to the different sections of the page
+    - maybe there should be a button that would appear on every element of the page when you mouse over that element
+- maybe include the context of the whole page of html to the ai so the ai can better implement each section
+- maybe you should be able to give the ai more context like a whole other webpage... like I could tell the ai
+to make an about me page for a website where the rest of the site already exists and I could supply the html for the rest of the site
+- add a login screen
+- add the ability for the user to supply an OpenAI API key
+- add a style guide for the user to set fonts, colors, logos, etc for the ai to use
+- add the ability to preview the prototype without the elements that aren't apart of the prototype
+- fix the way we're handling prototype.html to be more dry and modular
+- make everything look good and professional
+    - make the text area appear directly above the provide prompt button
+    - make all the non-prototype elements slightly transparent
+    - it seems like the top bar might be in the way a bit because the ai generated html might appear behind it
+    maybe I should make it disappear unless the user brings their mouse towards the top of the screen
+    - maybe make all the non-prototype elements disappear unless you move the mouse towards them
+- put this baby on the internet
+- get rid of hx-ai and just use hx-get
