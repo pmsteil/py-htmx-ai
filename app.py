@@ -26,11 +26,11 @@
 
 """
 import os
-
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file, Response
 from openai import OpenAI
 from dotenv import load_dotenv
 from openai import ChatCompletion
+from bs4 import BeautifulSoup
 
 
 # load ENV vars
@@ -44,80 +44,101 @@ DEBUG_LEVEL = os.getenv("DEBUG_LEVEL", 0)
 
 app = Flask(__name__)
 
-def _generate_html_based_on_prompt(prompt):
-    """
-    Generate HTML and CSS code based on a given prompt using the OpenAI API.
-    Args:
-        prompt (str): The prompt for generating the code.
-    Returns:
-        str: The generated HTML and CSS code.
-    """
-    client = OpenAI()
-    system_prompt = ("You are an expert at writing HTML and CSS. "
-                     "Your Task is to write new HTML and CSS Code for a web app, according to the provided task details. "
-                     "The html code you write can make use of Tailwind classes for styling. "
-                     "Your generated code will be directly written to innerHTML of an HTML Element and used in production.")
-
-    user_prompt = ("- CODE DESCRIPTION :\n"
-                   "```\n" +
-                   prompt +
-                   "\n```\n\n"
-                   "Answer with generated code only. DO NOT ADD ANY EXTRA TEXT DESCRIPTION OR COMMENTS BESIDES THE CODE. Your answer contains code only ! "
-                   "Only include images if you are specifically asked for it. If asked to use images you can use https://source.unsplash.com/random/ as the image source. You can use one keyword to get a specific image by providing it like this https://source.unsplash.com/random/?keyword. "
-                   "When using images make sure that they are not stretched by using object-cover or bg-cover on the image. "
-                   "Write the full code for the new HTML and CSS for the web app. which uses tailwind classes if needed. you can use the svg icon code of heroicons directly if needed."
-                   "The code that you write will be written directly into an HTML DOM Make sure that all html elements are closed properly and that your full code in enclosed with ```html blocks."
-                   "Do not use libraries or imports except what is provided in this task; otherwise it would crash the component because not installed. Do not import extra libraries besides what is provided above !"
-                   "Write the Code as the creative genius that you are - with good ui formatting.")
-
-    debug( f"Calling OpenAI({OPENAI_MODEL})... with prompt: \n" + prompt, 1)
-    response = client.chat.completions.create(model=OPENAI_MODEL,
-                                              messages=[
-                                                  {"role": "system", "content": system_prompt},
-                                                  {"role": "user", "content": user_prompt}
-                                              ])
-
-    html_code = response.choices[0].message.content.split("```html")[1].split("```")[0].strip()
-
-    debug(f"RETURNING HTML CODE:\n{html_code}\n", 2)
-
-    return html_code
-
-
 @app.route('/', methods=['GET'])
-def home():
-
+def home() -> str:
     return render_template('index.html')
 
+class ChatBot:
+    def __init__(self, previous_messages:list[dict]) -> None:
+        self.previous_messages = previous_messages
 
-@app.route('/generate', methods=['POST', 'GET'])
-def generate_html():
+    def generate_html(self, prompt:str, with_context:bool=False) -> str:
+        client = OpenAI()
+        system_prompt = ("You are an expert at writing HTML and CSS. "
+                        "Your Task is to write new HTML and CSS Code for a web app, according to the provided task details. "
+                        "The html code you write can make use of Tailwind classes for styling. "
+                        "Your generated code will be directly written to innerHTML of an HTML Element and used in production.")
+
+        user_prompt = ("- CODE DESCRIPTION :\n"
+                    "```\n" +
+                    prompt +
+                    "\n```\n\n"
+                    "Answer with generated code only. DO NOT ADD ANY EXTRA TEXT DESCRIPTION OR COMMENTS BESIDES THE CODE. Your answer contains code only ! "
+                    "Only include images if you are specifically asked for it. If asked to use images you can use https://source.unsplash.com/random/ as the image source. You can use one keyword to get a specific image by providing it like this https://source.unsplash.com/random/?keyword. "
+                    "When using images make sure that they are not stretched by using object-cover or bg-cover on the image. "
+                    "Write the full code for the new HTML and CSS for the web app. which uses tailwind classes if needed. you can use the svg icon code of heroicons directly if needed."
+                    "The code that you write will be written directly into an HTML DOM Make sure that all html elements are closed properly and that your full code in enclosed with ```html blocks."
+                    "Do not use libraries or imports except what is provided in this task; otherwise it would crash the component because not installed. Do not import extra libraries besides what is provided above !"
+                    "Write the Code as the creative genius that you are - with good ui formatting.")
+
+        debug( f"Calling OpenAI({OPENAI_MODEL})... with prompt: \n" + prompt, 1)
+        
+        current_prompts = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
+        current_conversation:list[dict] = []
+        if with_context:
+            current_conversation = [message for message in self.previous_messages]
+        for prompt in current_prompts:
+            current_conversation.append(prompt)
+        response = client.chat.completions.create(model=OPENAI_MODEL, messages=current_conversation)
+
+        html_code = response.choices[0].message.content.split("```html")[1].split("```")[0].strip()
+
+        debug(f"RETURNING HTML CODE:\n{html_code}\n", 2)
+
+        return html_code
+
+html_chatbot = ChatBot([])
+
+@app.route('/generate', methods=['GET'])
+def generate_html_with_ai_button() -> str:
     """
-    Generate HTML and CSS code based on a given prompt.
+    Generate HTML and CSS code based on a given prompt
+    Add the prompt and the response to previous_messages within html_chatbot
     """
     if request.method == 'GET':
         prompt = request.args.get('prompt', None)
         if not prompt:
             return jsonify({'error': 'Prompt is required'}), 400
+        
+        html_code = html_chatbot.generate_html(f'{prompt}', with_context=True)
+        prompt_and_response = [{'role': 'user', 'content': f'{prompt}'}, {'role': 'assistant', 'content': html_code}]
+        for prompt in prompt_and_response:
+            html_chatbot.previous_messages.append(prompt)
 
-        html_code = _generate_html_based_on_prompt(prompt)
         return html_code
 
-    # hmm, couldn't get post to work... so using get for now
-    # POST http://127.0.0.1:3333/generate 415 (UNSUPPORTED MEDIA TYPE)
-    elif request.method == 'POST':
-        data = request.json
-        prompt = data.get('prompt', None)
+@app.route('/download_file/<filename>')
+def download_file(filename:str) -> Response:
+    """
+    Download a file that is in the same directory as app.py
+    If <filename> == prototype.html, create prototype.html first
+    """
+    if filename == 'prototype.html':
+        update_prototype_html_file()
+    return send_file(filename, as_attachment=True)
 
-        if not prompt:
-            return jsonify({'error': 'Prompt is required'}), 400
+def update_prototype_html_file():
+    for message in reversed(html_chatbot.previous_messages):
+        if message['role'] == 'assistant':
+            prototype_html = message['content']
+            break
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(current_directory, 'prototype.html')
+    with open(file_path, 'w') as prototype:
+        html_content = f'''<!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <title>Prototype</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        </head>
+        <body>{prototype_html}</body>
+        </html>'''
+        prototype.write(html_content)
 
-        html_code = _generate_html_based_on_prompt(prompt)
-        response = jsonify({'html_code': html_code})
-        return response
-
-
-def debug(message, level=1):
+def debug(message:str, level:int=1) -> None:
     """
     Print debug messages based on the DEBUG_LEVEL environment variable.
     Args:
@@ -126,8 +147,7 @@ def debug(message, level=1):
     """
     if DEBUG_LEVEL and int(DEBUG_LEVEL) >= level:
         print(message)
-
-
+        
 # Run the server on port 3333
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3333, debug=True)
